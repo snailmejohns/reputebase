@@ -256,9 +256,10 @@ npm publish
 - **Coming Soon** - Deploy after thorough testing on Sepolia
 
 ### Services
-- **Frontend:** [Coming Soon](https://reputebase.xyz)
-- **API:** [Coming Soon](https://api.reputebase.xyz)
-- **Documentation:** [docs.reputebase.xyz](https://docs.reputebase.xyz)
+- **Frontend:** [Live on Vercel](https://reputebase-d02ku2qse-nikolays-projects-8fe82702.vercel.app/)
+- **API:** [Live on Railway](https://reputebase-production.up.railway.app)
+- **API Health:** [https://reputebase-production.up.railway.app/health](https://reputebase-production.up.railway.app/health)
+- **Documentation:** [docs.reputebase.xyz](https://docs.reputebase.xyz) (Coming Soon)
 
 ---
 
