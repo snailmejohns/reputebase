@@ -1,0 +1,62 @@
+name: Deploy Contracts
+
+on:
+  workflow_dispatch:
+    inputs:
+      network:
+        description: 'Network to deploy to'
+        required: true
+        type: choice
+        options:
+          - sepolia
+          - mainnet
+      verify:
+        description: 'Verify contracts on Basescan'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install dependencies
+        working-directory: ./contracts
+        run: |
+          forge install OpenZeppelin/openzeppelin-contracts --no-commit
+
+      - name: Deploy contracts
+        working-directory: ./contracts
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
+          BASE_MAINNET_RPC_URL: ${{ secrets.BASE_MAINNET_RPC_URL }}
+          BASESCAN_API_KEY: ${{ secrets.BASESCAN_API_KEY }}
+        run: |
+          if [ "${{ github.event.inputs.network }}" == "sepolia" ]; then
+            forge script script/Deploy.s.sol:DeployScript \
+              --rpc-url base_sepolia \
+              --broadcast \
+              ${{ github.event.inputs.verify && '--verify' || '' }}
+          else
+            forge script script/Deploy.s.sol:DeployScript \
+              --rpc-url base_mainnet \
+              --broadcast \
+              ${{ github.event.inputs.verify && '--verify' || '' }}
+          fi
+
+      - name: Save deployment addresses
+        if: success()
+        run: |
+          echo "Deployment completed. Check the output above for contract addresses."
+          echo "Update your .env files with the new addresses."
+

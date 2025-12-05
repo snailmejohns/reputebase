@@ -1,0 +1,26 @@
+{
+  "name": "@reputebase/api",
+  "version": "0.1.0",
+  "description": "REST API for ReputeBase reputation system",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node index.js",
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "reputation",
+    "base",
+    "blockchain",
+    "api"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ethers": "^6.9.0"
+  }
+}
+

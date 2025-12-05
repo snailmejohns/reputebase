@@ -1,0 +1,24 @@
+{
+  "name": "reputebase",
+  "version": "0.1.0",
+  "description": "Decentralized Identity & Reputation Layer for Base",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd contracts && forge install && cd ../frontend && npm install && cd ../api && npm install && cd ../sdk/js && npm install",
+    "test:contracts": "cd contracts && forge test",
+    "build:contracts": "cd contracts && forge build",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:api": "cd api && npm run dev",
+    "build:sdk": "cd sdk/js && npm run build"
+  },
+  "keywords": [
+    "reputation",
+    "identity",
+    "base",
+    "blockchain",
+    "ethereum"
+  ],
+  "author": "",
+  "license": "MIT"
+}
+

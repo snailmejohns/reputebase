@@ -1,0 +1,41 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          if [ -f "package.json" ]; then
+            npm ci
+          fi
+          if [ -f "frontend/package.json" ]; then
+            cd frontend && npm ci && cd ..
+          fi
+          if [ -f "api/package.json" ]; then
+            cd api && npm ci && cd ..
+          fi
+          if [ -f "sdk/js/package.json" ]; then
+            cd sdk/js && npm ci && cd ../..
+          fi
+
+      - name: Run ESLint
+        run: |
+          if [ -f "frontend/package.json" ]; then
+            cd frontend && npm run lint || true
+          fi
+
