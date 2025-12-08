@@ -26,37 +26,35 @@ const anvil = {
 
 // Base Sepolia RPC URLs with fallbacks (free public endpoints)
 // Priority: custom URL > official Base > public nodes
+// Using fewer endpoints to reduce load and improve reliability
 const baseSepoliaRpcUrls = [
   process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL,
-  'https://sepolia.base.org', // Official Base Sepolia RPC
-  'https://base-sepolia-rpc.publicnode.com', // PublicNode (free)
-  'https://base-sepolia.blockpi.network/v1/rpc/public', // BlockPI (free)
-  'https://base-sepolia.gateway.tenderly.co', // Tenderly (free)
-  'https://base-sepolia.drpc.org', // dRPC (free)
+  'https://sepolia.base.org', // Official Base Sepolia RPC (most reliable)
+  'https://base-sepolia-rpc.publicnode.com', // PublicNode (backup)
 ].filter(Boolean);
 
 // Create fallback transport for Base Sepolia
-// Use fallback to automatically switch between endpoints if one fails
-// Disable batch multicall to reduce RPC load
+// Simplified approach: use official endpoint first, then fallback
+// Increased timeouts and reduced retries to avoid overloading
 const baseSepoliaTransport = baseSepoliaRpcUrls.length > 1
   ? fallback(
-      baseSepoliaRpcUrls.map((url, index) => http(url, {
-        // First endpoint (custom or official) gets more retries
-        retryCount: index === 0 ? 2 : 1,
-        retryDelay: index === 0 ? 500 : 300,
-        timeout: 15000, // Increased timeout for public endpoints
-        // Disable batch to reduce load on free endpoints
-        batch: false,
-      })),
+      baseSepoliaRpcUrls.map((url, index) => {
+        console.log(`📡 [RPC] Configuring endpoint ${index + 1}: ${url}`);
+        return http(url, {
+          retryCount: 0, // No retries - let fallback handle it
+          timeout: 20000, // 20 second timeout
+          batch: false, // Disable batch to reduce load
+        });
+      }),
       { 
-        rank: false, // Don't rank endpoints, try in order
-        retryCount: 1, // Retry once with next endpoint
+        rank: false,
+        retryCount: 0, // Try each endpoint once
       }
     )
   : http(baseSepoliaRpcUrls[0] || 'https://sepolia.base.org', {
-      retryCount: 3,
-      retryDelay: 500,
-      timeout: 15000,
+      retryCount: 1, // Single retry for single endpoint
+      retryDelay: 1000,
+      timeout: 20000,
       batch: false,
     });
 

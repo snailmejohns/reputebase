@@ -56,39 +56,87 @@ export default function Home() {
       // Normalize address (convert to checksum)
       const normalizedAddr = addr.toLowerCase();
       
+      console.log('🔍 [API] Fetching reputation:', { API_URL, address: normalizedAddr });
+      
+      // Check if API URL is valid
+      if (!API_URL || API_URL.includes('localhost') || API_URL === 'http://localhost:3001') {
+        const errorMsg = 'API URL is not configured. Please set NEXT_PUBLIC_API_URL in Vercel environment variables.';
+        console.error('❌ [API ERROR]', errorMsg);
+        toast.error(errorMsg, { duration: 8000 });
+        setLoading(false);
+        return;
+      }
+      
       const [repRes, badgesRes] = await Promise.all([
-        axios.get(`${API_URL}/reputation/${normalizedAddr}`, { timeout: 10000 }),
-        axios.get(`${API_URL}/badges/${normalizedAddr}`, { timeout: 10000 })
+        axios.get(`${API_URL}/reputation/${normalizedAddr}`, { 
+          timeout: 10000,
+          validateStatus: (status) => status < 500, // Don't throw on 404
+        }),
+        axios.get(`${API_URL}/badges/${normalizedAddr}`, { 
+          timeout: 10000,
+          validateStatus: (status) => status < 500,
+        })
       ]);
       
+      // Check for 404 or other errors
+      if (repRes.status === 404) {
+        console.warn('⚠️ [API] 404 - API endpoint not found. Check API URL:', API_URL);
+        toast.error(`API endpoint not found (404). Please check NEXT_PUBLIC_API_URL: ${API_URL}`, { duration: 10000 });
+        setLoading(false);
+        return;
+      }
+      
+      if (repRes.status >= 400) {
+        const errorMsg = repRes.data?.error || repRes.data?.message || `API error (${repRes.status})`;
+        console.error('❌ [API ERROR]', { status: repRes.status, data: repRes.data });
+        toast.error(`API error: ${errorMsg}`, { duration: 8000 });
+        setLoading(false);
+        return;
+      }
+      
+      console.log('✅ [API] Success:', { reputation: repRes.data, badges: badgesRes.data });
       setReputation(repRes.data);
       setBadges(badgesRes.data);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      console.error('API URL:', API_URL);
-      console.error('Address:', addr);
+      console.error('❌ [API ERROR] Full error:', {
+        error,
+        message: error?.message,
+        response: error?.response,
+        request: error?.request,
+        API_URL,
+        address: addr,
+      });
       
       let errorMsg = 'Unknown error';
       
       if (error.response) {
         // Server responded with error status
-        console.error('Response error:', error.response.status, error.response.data);
-        errorMsg = error.response.data?.error || error.response.data?.message || `Server error (${error.response.status})`;
+        const status = error.response.status;
+        const data = error.response.data;
+        
+        console.error('❌ [API ERROR] Response:', { status, data });
+        
+        if (status === 404) {
+          // Check if it's a Next.js 404 page (HTML response)
+          if (typeof data === 'string' && data.includes('<!DOCTYPE html>')) {
+            errorMsg = `API URL returned 404 page. Please check NEXT_PUBLIC_API_URL: ${API_URL}. Make sure the API is deployed and accessible.`;
+          } else {
+            errorMsg = `API endpoint not found (404). Check if API is running at ${API_URL}`;
+          }
+        } else {
+          errorMsg = data?.error || data?.message || `Server error (${status})`;
+        }
       } else if (error.request) {
         // Request was made but no response received
-        console.error('No response received:', error.request);
-        if (API_URL.includes('localhost') || !API_URL) {
-          errorMsg = 'API is not configured. Please set NEXT_PUBLIC_API_URL in environment variables.';
-        } else {
-          errorMsg = `Cannot connect to API at ${API_URL}. Please check if the API is running and accessible.`;
-        }
+        console.error('❌ [API ERROR] No response:', error.request);
+        errorMsg = `Cannot connect to API at ${API_URL}. Please check if the API is running and accessible.`;
       } else {
         // Error setting up request
-        console.error('Request setup error:', error.message);
+        console.error('❌ [API ERROR] Setup error:', error.message);
         errorMsg = error.message || 'Failed to fetch reputation';
       }
       
-      toast.error(`Failed to fetch reputation: ${errorMsg}`, { duration: 6000 });
+      toast.error(`Failed to fetch reputation: ${errorMsg}`, { duration: 10000 });
     } finally {
       setLoading(false);
     }
@@ -161,15 +209,24 @@ export default function Home() {
         function: 'recordTransaction',
         args: [address, amount.toString()],
         amount: formatEther(amount),
+        chainId,
+        network: chain?.name,
       });
       
       toast.loading('Preparing transaction...', { id: 'tx-loading' });
+      
+      // Add a small delay to avoid RPC rate limiting
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('📤 [INFO] Sending transaction...');
       
       await writeContract({
         address: TX_VOLUME_MODULE_ADDRESS,
         abi: TX_VOLUME_MODULE_ABI,
         functionName: 'recordTransaction',
         args: [address, amount],
+        // Add gas estimation to help with RPC issues
+        gas: undefined, // Let wagmi estimate
       });
       
       console.log('✅ [SUCCESS] Transaction sent, waiting for confirmation...');
