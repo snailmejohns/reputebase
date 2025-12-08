@@ -26,35 +26,36 @@ const anvil = {
 
 // Base Sepolia RPC URLs with fallbacks (free public endpoints)
 // Priority: custom URL > official Base > public nodes
-// Using fewer endpoints to reduce load and improve reliability
+// More endpoints for better reliability
 const baseSepoliaRpcUrls = [
   process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL,
   'https://sepolia.base.org', // Official Base Sepolia RPC (most reliable)
-  'https://base-sepolia-rpc.publicnode.com', // PublicNode (backup)
+  'https://base-sepolia-rpc.publicnode.com', // PublicNode
+  'https://base-sepolia.blockpi.network/v1/rpc/public', // BlockPI
+  'https://base-sepolia.drpc.org', // dRPC
 ].filter(Boolean);
 
 // Create fallback transport for Base Sepolia
-// Simplified approach: use official endpoint first, then fallback
-// Increased timeouts and reduced retries to avoid overloading
+// Use exponential backoff and multiple endpoints
 const baseSepoliaTransport = baseSepoliaRpcUrls.length > 1
   ? fallback(
       baseSepoliaRpcUrls.map((url, index) => {
-        console.log(`📡 [RPC] Configuring endpoint ${index + 1}: ${url}`);
+        console.log(`📡 [RPC] Configuring endpoint ${index + 1}/${baseSepoliaRpcUrls.length}: ${url}`);
         return http(url, {
-          retryCount: 0, // No retries - let fallback handle it
-          timeout: 20000, // 20 second timeout
+          retryCount: 0, // No individual retries - let fallback handle it
+          timeout: 30000, // 30 second timeout for public endpoints
           batch: false, // Disable batch to reduce load
         });
       }),
       { 
-        rank: false,
-        retryCount: 0, // Try each endpoint once
+        rank: false, // Try endpoints in order
+        retryCount: 2, // Try up to 2 times with different endpoints
       }
     )
   : http(baseSepoliaRpcUrls[0] || 'https://sepolia.base.org', {
-      retryCount: 1, // Single retry for single endpoint
-      retryDelay: 1000,
-      timeout: 20000,
+      retryCount: 2, // Multiple retries for single endpoint
+      retryDelay: 2000, // 2 second delay between retries
+      timeout: 30000,
       batch: false,
     });
 

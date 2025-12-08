@@ -6,6 +6,15 @@ import axios from 'axios';
 import { parseEther, formatEther } from 'viem';
 import toast from 'react-hot-toast';
 
+// RPC endpoints list (for logging)
+const baseSepoliaRpcUrls = [
+  process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL,
+  'https://sepolia.base.org',
+  'https://base-sepolia-rpc.publicnode.com',
+  'https://base-sepolia.blockpi.network/v1/rpc/public',
+  'https://base-sepolia.drpc.org',
+].filter(Boolean);
+
 // Contract addresses (from deployment)
 // Base Sepolia: 0x5d7683Ab887849543ae32287c26ac9da40423342
 // Local Anvil: 0x39a2C6Ae37a3E6C7f5a7C8a3fEa9C1Cd725BD8Aa
@@ -235,17 +244,20 @@ export default function Home() {
       
       toast.loading('Preparing transaction...', { id: 'tx-loading' });
       
-      // Add a small delay to avoid RPC rate limiting
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Add a delay to avoid RPC rate limiting
+      // Longer delay for public endpoints
+      const delay = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL ? 500 : 2000;
+      console.log(`⏳ [INFO] Waiting ${delay}ms before transaction to avoid rate limiting...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
       
       console.log('📤 [INFO] Sending transaction...');
+      console.log('📡 [RPC] Using endpoints:', baseSepoliaRpcUrls.length, 'available');
       
       await writeContract({
         address: TX_VOLUME_MODULE_ADDRESS,
         abi: TX_VOLUME_MODULE_ABI,
         functionName: 'recordTransaction',
         args: [address, amount],
-        // Add gas estimation to help with RPC issues
         gas: undefined, // Let wagmi estimate
       });
       
