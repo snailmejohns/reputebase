@@ -164,7 +164,7 @@ export default function Home() {
       
       // Provide user-friendly error messages
       if (errorMsg.includes('RPC endpoint') || errorMsg.includes('too many errors') || errorMsg.includes('Requested resource not available')) {
-        errorMsg = 'RPC endpoint is temporarily unavailable. Please try again in a few moments. If the problem persists, consider using a custom RPC endpoint.';
+        errorMsg = 'RPC endpoint is temporarily unavailable. The app will automatically try other endpoints. Please wait a few seconds and try again.';
       } else if (errorMsg.includes('User rejected') || errorMsg.includes('user rejected')) {
         errorMsg = 'Transaction was cancelled';
       } else if (errorMsg.includes('insufficient funds') || errorMsg.includes('insufficient balance')) {

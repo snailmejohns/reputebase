@@ -24,30 +24,40 @@ const anvil = {
   },
 };
 
-// Base Sepolia RPC URLs with fallbacks (more reliable endpoints first)
+// Base Sepolia RPC URLs with fallbacks (free public endpoints)
+// Priority: custom URL > official Base > public nodes
 const baseSepoliaRpcUrls = [
   process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL,
-  'https://sepolia.base.org',
-  'https://base-sepolia-rpc.publicnode.com',
-  'https://base-sepolia.blockpi.network/v1/rpc/public',
-  'https://base-sepolia.g.alchemy.com/v2/demo',
+  'https://sepolia.base.org', // Official Base Sepolia RPC
+  'https://base-sepolia-rpc.publicnode.com', // PublicNode (free)
+  'https://base-sepolia.blockpi.network/v1/rpc/public', // BlockPI (free)
+  'https://base-sepolia.gateway.tenderly.co', // Tenderly (free)
+  'https://base-sepolia.drpc.org', // dRPC (free)
 ].filter(Boolean);
 
 // Create fallback transport for Base Sepolia
-// Disable batch multicall to reduce RPC load and improve reliability
+// Use fallback to automatically switch between endpoints if one fails
+// Disable batch multicall to reduce RPC load
 const baseSepoliaTransport = baseSepoliaRpcUrls.length > 1
   ? fallback(
-      baseSepoliaRpcUrls.map(url => http(url, {
-        retryCount: 1,
-        retryDelay: 300,
-        timeout: 10000,
+      baseSepoliaRpcUrls.map((url, index) => http(url, {
+        // First endpoint (custom or official) gets more retries
+        retryCount: index === 0 ? 2 : 1,
+        retryDelay: index === 0 ? 500 : 300,
+        timeout: 15000, // Increased timeout for public endpoints
+        // Disable batch to reduce load on free endpoints
+        batch: false,
       })),
-      { rank: false }
+      { 
+        rank: false, // Don't rank endpoints, try in order
+        retryCount: 1, // Retry once with next endpoint
+      }
     )
   : http(baseSepoliaRpcUrls[0] || 'https://sepolia.base.org', {
-      retryCount: 2,
+      retryCount: 3,
       retryDelay: 500,
-      timeout: 10000,
+      timeout: 15000,
+      batch: false,
     });
 
 const config = getDefaultConfig({

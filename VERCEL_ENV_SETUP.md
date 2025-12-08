@@ -67,10 +67,13 @@ NEXT_PUBLIC_GA_ID=your-google-analytics-id
 - Проверьте CORS настройки API
 
 ### "RPC endpoint returned too many errors"
-- Добавьте `NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL` с вашим Alchemy/Infura ключом
-- Публичные RPC endpoints могут быть перегружены
+- Приложение автоматически переключается между несколькими бесплатными endpoints
+- Подождите несколько секунд и попробуйте снова
+- Если проблема сохраняется, попробуйте позже (публичные endpoints могут быть временно перегружены)
+- Для максимальной надежности можно добавить платный RPC endpoint (Alchemy/Infura/QuickNode)
 
 ### "Transaction failed: Requested resource not available"
-- Это та же проблема с RPC
-- Используйте платный RPC endpoint (Alchemy/Infura)
+- Это временная проблема с RPC endpoint
+- Приложение автоматически попробует другой endpoint
+- Подождите и попробуйте снова через несколько секунд
 
