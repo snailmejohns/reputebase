@@ -57,7 +57,7 @@ contract BadgeNFT is ERC721URIStorage, Ownable {
      * @param _reputeCore Address of the ReputeCore contract
      * @param baseURI Base URI for token metadata
      */
-    constructor(address _reputeCore, string memory baseURI) ERC721("ReputeBase Badges", "RPTB") Ownable(msg.sender) {
+    constructor(address _reputeCore, string memory baseURI) ERC721("ReputeBase Badges", "RPTB") Ownable() {
         require(_reputeCore != address(0), "BadgeNFT: invalid ReputeCore address");
         reputeCore = ReputeCore(_reputeCore);
         _baseTokenURI = baseURI;
