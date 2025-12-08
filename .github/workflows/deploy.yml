@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         working-directory: ./contracts
         run: |
-          forge install OpenZeppelin/openzeppelin-contracts
+          forge install OpenZeppelin/openzeppelin-contracts@v4.9.6
 
       - name: Remove problematic directories
         working-directory: ./contracts
