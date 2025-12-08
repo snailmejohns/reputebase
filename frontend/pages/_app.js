@@ -4,7 +4,7 @@ import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
 import { base, baseSepolia } from 'wagmi/chains';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
-import { http } from 'wagmi';
+import { http, fallback } from 'wagmi';
 import { Toaster } from 'react-hot-toast';
 import Script from 'next/script';
 
@@ -24,13 +24,41 @@ const anvil = {
   },
 };
 
+// Base Sepolia RPC URLs with fallbacks
+const baseSepoliaRpcUrls = [
+  process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL,
+  'https://sepolia.base.org',
+  'https://base-sepolia-rpc.publicnode.com',
+  'https://base-sepolia.g.alchemy.com/v2/demo',
+].filter(Boolean);
+
+// Create fallback transport for Base Sepolia
+const baseSepoliaTransport = baseSepoliaRpcUrls.length > 1
+  ? fallback(
+      baseSepoliaRpcUrls.map(url => http(url, {
+        batch: {
+          multicall: true,
+        },
+        retryCount: 2,
+        retryDelay: 500,
+      })),
+      { rank: false }
+    )
+  : http(baseSepoliaRpcUrls[0] || 'https://sepolia.base.org', {
+      batch: {
+        multicall: true,
+      },
+      retryCount: 3,
+      retryDelay: 1000,
+    });
+
 const config = getDefaultConfig({
   appName: 'ReputeBase',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
   chains: [anvil, baseSepolia, base],
   transports: {
     [anvil.id]: http('http://localhost:8545'),
-    [baseSepolia.id]: http(),
+    [baseSepolia.id]: baseSepoliaTransport,
     [base.id]: http(),
   },
   ssr: true,

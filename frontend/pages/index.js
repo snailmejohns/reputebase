@@ -148,8 +148,21 @@ export default function Home() {
     if (writeError || isReceiptError) {
       const error = writeError || receiptError;
       console.error('Transaction error:', error);
-      const errorMsg = error?.message || 'Unknown error';
-      toast.error(`Transaction failed: ${errorMsg}`, { id: 'tx-loading' });
+      
+      let errorMsg = error?.message || 'Unknown error';
+      
+      // Provide user-friendly error messages
+      if (errorMsg.includes('RPC endpoint') || errorMsg.includes('too many errors')) {
+        errorMsg = 'RPC endpoint is unavailable. Please try again in a moment or switch to a different network.';
+      } else if (errorMsg.includes('User rejected')) {
+        errorMsg = 'Transaction was cancelled';
+      } else if (errorMsg.includes('insufficient funds')) {
+        errorMsg = 'Insufficient funds for transaction';
+      } else if (errorMsg.includes('network')) {
+        errorMsg = 'Network error. Please check your connection and try again.';
+      }
+      
+      toast.error(`Transaction failed: ${errorMsg}`, { id: 'tx-loading', duration: 6000 });
       setEarningRep(false);
     }
   }, [writeError, isReceiptError]);
