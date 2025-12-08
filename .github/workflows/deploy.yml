@@ -34,6 +34,12 @@ jobs:
         run: |
           forge install OpenZeppelin/openzeppelin-contracts
 
+      - name: Remove problematic directories
+        working-directory: ./contracts
+        run: |
+          rm -rf lib/openzeppelin-contracts/certora
+          rm -rf lib/openzeppelin-contracts/mocks/crosschain
+
       - name: Deploy contracts
         working-directory: ./contracts
         env:

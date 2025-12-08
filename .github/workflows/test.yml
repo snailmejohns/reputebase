@@ -23,9 +23,15 @@ jobs:
         run: |
           forge install OpenZeppelin/openzeppelin-contracts
 
+      - name: Remove problematic directories
+        working-directory: ./contracts
+        run: |
+          rm -rf lib/openzeppelin-contracts/certora
+          rm -rf lib/openzeppelin-contracts/mocks/crosschain
+
       - name: Run tests
         working-directory: ./contracts
-        run: forge test -vvv --skip lib/openzeppelin-contracts/certora --skip lib/openzeppelin-contracts/test --skip lib/openzeppelin-contracts/mocks/crosschain
+        run: forge test -vvv
 
       - name: Build contracts
         working-directory: ./contracts
