@@ -25,7 +25,7 @@ jobs:
 
       - name: Run tests
         working-directory: ./contracts
-        run: forge test -vvv
+        run: forge test -vvv --skip lib/openzeppelin-contracts/certora --skip lib/openzeppelin-contracts/test --skip lib/openzeppelin-contracts/mocks/crosschain
 
       - name: Build contracts
         working-directory: ./contracts
