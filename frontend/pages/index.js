@@ -251,7 +251,8 @@ export default function Home() {
       await new Promise(resolve => setTimeout(resolve, delay));
       
       console.log('📤 [INFO] Sending transaction...');
-      console.log('📡 [RPC] Using endpoints:', baseSepoliaRpcUrls.length, 'available');
+      const rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL;
+      console.log('📡 [RPC] Custom RPC:', rpcUrl ? `✅ ${rpcUrl.substring(0, 50)}...` : '❌ Not set (using public endpoints)');
       
       await writeContract({
         address: TX_VOLUME_MODULE_ADDRESS,

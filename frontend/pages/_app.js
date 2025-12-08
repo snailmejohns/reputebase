@@ -27,37 +27,82 @@ const anvil = {
 // Base Sepolia RPC URLs with fallbacks (free public endpoints)
 // Priority: custom URL > official Base > public nodes
 // More endpoints for better reliability
+const customRpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL;
+
+// Log RPC configuration on client side
+if (typeof window !== 'undefined') {
+  console.log('📡 [RPC CONFIG] Custom RPC URL:', customRpcUrl ? '✅ Set' : '❌ Not set');
+  if (customRpcUrl) {
+    console.log('📡 [RPC CONFIG] Using custom RPC:', customRpcUrl);
+  } else {
+    console.warn('⚠️ [RPC CONFIG] No custom RPC set, will use public endpoints');
+  }
+}
+
 const baseSepoliaRpcUrls = [
-  process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL,
+  customRpcUrl,
   'https://sepolia.base.org', // Official Base Sepolia RPC (most reliable)
   'https://base-sepolia-rpc.publicnode.com', // PublicNode
   'https://base-sepolia.blockpi.network/v1/rpc/public', // BlockPI
   'https://base-sepolia.drpc.org', // dRPC
 ].filter(Boolean);
 
+if (typeof window !== 'undefined') {
+  console.log('📡 [RPC CONFIG] Total endpoints:', baseSepoliaRpcUrls.length);
+  baseSepoliaRpcUrls.forEach((url, i) => {
+    console.log(`📡 [RPC CONFIG] Endpoint ${i + 1}: ${url?.substring(0, 50)}...`);
+  });
+}
+
 // Create fallback transport for Base Sepolia
-// Use exponential backoff and multiple endpoints
-const baseSepoliaTransport = baseSepoliaRpcUrls.length > 1
-  ? fallback(
-      baseSepoliaRpcUrls.map((url, index) => {
-        console.log(`📡 [RPC] Configuring endpoint ${index + 1}/${baseSepoliaRpcUrls.length}: ${url}`);
-        return http(url, {
-          retryCount: 0, // No individual retries - let fallback handle it
-          timeout: 30000, // 30 second timeout for public endpoints
-          batch: false, // Disable batch to reduce load
-        });
-      }),
-      { 
-        rank: false, // Try endpoints in order
-        retryCount: 2, // Try up to 2 times with different endpoints
-      }
-    )
-  : http(baseSepoliaRpcUrls[0] || 'https://sepolia.base.org', {
-      retryCount: 2, // Multiple retries for single endpoint
-      retryDelay: 2000, // 2 second delay between retries
-      timeout: 30000,
-      batch: false,
-    });
+// If custom RPC is set, use it primarily with minimal fallback
+// If no custom RPC, use multiple public endpoints
+const baseSepoliaTransport = customRpcUrl
+  ? // Custom RPC mode: use custom first, with one fallback
+    fallback(
+        [
+          http(customRpcUrl, {
+            retryCount: 2, // Retry custom RPC multiple times
+            retryDelay: 1000,
+            timeout: 30000,
+            batch: false,
+          }),
+          // Only add official Base as fallback
+          http('https://sepolia.base.org', {
+            retryCount: 1,
+            timeout: 30000,
+            batch: false,
+          }),
+        ],
+        {
+          rank: false,
+          retryCount: 1, // Try fallback once if custom fails
+        }
+      )
+  : // Public endpoints mode: use multiple endpoints
+    baseSepoliaRpcUrls.length > 1
+    ? fallback(
+        baseSepoliaRpcUrls.map((url, index) => {
+          if (typeof window !== 'undefined') {
+            console.log(`📡 [RPC] Configuring endpoint ${index + 1}/${baseSepoliaRpcUrls.length}: ${url?.substring(0, 50)}...`);
+          }
+          return http(url, {
+            retryCount: 0, // No individual retries - let fallback handle it
+            timeout: 30000, // 30 second timeout for public endpoints
+            batch: false, // Disable batch to reduce load
+          });
+        }),
+        { 
+          rank: false, // Try endpoints in order
+          retryCount: 2, // Try up to 2 times with different endpoints
+        }
+      )
+    : http(baseSepoliaRpcUrls[0] || 'https://sepolia.base.org', {
+        retryCount: 2, // Multiple retries for single endpoint
+        retryDelay: 2000, // 2 second delay between retries
+        timeout: 30000,
+        batch: false,
+      });
 
 const config = getDefaultConfig({
   appName: 'ReputeBase',
