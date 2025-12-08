@@ -24,32 +24,30 @@ const anvil = {
   },
 };
 
-// Base Sepolia RPC URLs with fallbacks
+// Base Sepolia RPC URLs with fallbacks (more reliable endpoints first)
 const baseSepoliaRpcUrls = [
   process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL,
   'https://sepolia.base.org',
   'https://base-sepolia-rpc.publicnode.com',
+  'https://base-sepolia.blockpi.network/v1/rpc/public',
   'https://base-sepolia.g.alchemy.com/v2/demo',
 ].filter(Boolean);
 
 // Create fallback transport for Base Sepolia
+// Disable batch multicall to reduce RPC load and improve reliability
 const baseSepoliaTransport = baseSepoliaRpcUrls.length > 1
   ? fallback(
       baseSepoliaRpcUrls.map(url => http(url, {
-        batch: {
-          multicall: true,
-        },
-        retryCount: 2,
-        retryDelay: 500,
+        retryCount: 1,
+        retryDelay: 300,
+        timeout: 10000,
       })),
       { rank: false }
     )
   : http(baseSepoliaRpcUrls[0] || 'https://sepolia.base.org', {
-      batch: {
-        multicall: true,
-      },
-      retryCount: 3,
-      retryDelay: 1000,
+      retryCount: 2,
+      retryDelay: 500,
+      timeout: 10000,
     });
 
 const config = getDefaultConfig({

@@ -44,8 +44,8 @@ export default function Home() {
       const normalizedAddr = addr.toLowerCase();
       
       const [repRes, badgesRes] = await Promise.all([
-        axios.get(`${API_URL}/reputation/${normalizedAddr}`),
-        axios.get(`${API_URL}/badges/${normalizedAddr}`)
+        axios.get(`${API_URL}/reputation/${normalizedAddr}`, { timeout: 10000 }),
+        axios.get(`${API_URL}/badges/${normalizedAddr}`, { timeout: 10000 })
       ]);
       
       setReputation(repRes.data);
@@ -54,17 +54,28 @@ export default function Home() {
       console.error('Error fetching data:', error);
       console.error('API URL:', API_URL);
       console.error('Address:', addr);
+      
+      let errorMsg = 'Unknown error';
+      
       if (error.response) {
-        console.error('Response error:', error.response.data);
-        const errorMsg = error.response.data.error || error.response.data.message || 'Unknown error';
-        toast.error(`Failed to fetch reputation: ${errorMsg}`);
+        // Server responded with error status
+        console.error('Response error:', error.response.status, error.response.data);
+        errorMsg = error.response.data?.error || error.response.data?.message || `Server error (${error.response.status})`;
       } else if (error.request) {
+        // Request was made but no response received
         console.error('No response received:', error.request);
-        toast.error('Failed to connect to API. Please check if the API is running.');
+        if (API_URL.includes('localhost') || !API_URL) {
+          errorMsg = 'API is not configured. Please set NEXT_PUBLIC_API_URL in environment variables.';
+        } else {
+          errorMsg = `Cannot connect to API at ${API_URL}. Please check if the API is running and accessible.`;
+        }
       } else {
-        console.error('Error:', error.message);
-        toast.error(`Failed to fetch reputation: ${error.message}`);
+        // Error setting up request
+        console.error('Request setup error:', error.message);
+        errorMsg = error.message || 'Failed to fetch reputation';
       }
+      
+      toast.error(`Failed to fetch reputation: ${errorMsg}`, { duration: 6000 });
     } finally {
       setLoading(false);
     }
@@ -152,14 +163,16 @@ export default function Home() {
       let errorMsg = error?.message || 'Unknown error';
       
       // Provide user-friendly error messages
-      if (errorMsg.includes('RPC endpoint') || errorMsg.includes('too many errors')) {
-        errorMsg = 'RPC endpoint is unavailable. Please try again in a moment or switch to a different network.';
-      } else if (errorMsg.includes('User rejected')) {
+      if (errorMsg.includes('RPC endpoint') || errorMsg.includes('too many errors') || errorMsg.includes('Requested resource not available')) {
+        errorMsg = 'RPC endpoint is temporarily unavailable. Please try again in a few moments. If the problem persists, consider using a custom RPC endpoint.';
+      } else if (errorMsg.includes('User rejected') || errorMsg.includes('user rejected')) {
         errorMsg = 'Transaction was cancelled';
-      } else if (errorMsg.includes('insufficient funds')) {
-        errorMsg = 'Insufficient funds for transaction';
-      } else if (errorMsg.includes('network')) {
+      } else if (errorMsg.includes('insufficient funds') || errorMsg.includes('insufficient balance')) {
+        errorMsg = 'Insufficient funds for transaction. Please add more ETH to your wallet.';
+      } else if (errorMsg.includes('network') || errorMsg.includes('Network')) {
         errorMsg = 'Network error. Please check your connection and try again.';
+      } else if (errorMsg.includes('timeout') || errorMsg.includes('Timeout')) {
+        errorMsg = 'Request timed out. Please try again.';
       }
       
       toast.error(`Transaction failed: ${errorMsg}`, { id: 'tx-loading', duration: 6000 });
