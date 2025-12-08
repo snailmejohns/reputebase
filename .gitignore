@@ -12,6 +12,10 @@ build/
 dist/
 out/
 
+# Next.js
+.next/
+.next/**
+
 # Misc
 .DS_Store
 *.pem

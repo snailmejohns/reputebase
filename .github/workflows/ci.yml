@@ -1,4 +1,4 @@
-name: Lint
+name: CI
 
 on:
   push:
@@ -7,8 +7,36 @@ on:
     branches: [ main, develop ]
 
 jobs:
+  test-contracts:
+    name: Test Smart Contracts
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install dependencies
+        working-directory: ./contracts
+        run: forge install OpenZeppelin/openzeppelin-contracts
+
+      - name: Run tests
+        working-directory: ./contracts
+        run: forge test -vvv
+
+      - name: Build contracts
+        working-directory: ./contracts
+        run: forge build
+
+      - name: Check formatting
+        working-directory: ./contracts
+        run: forge fmt --check || (echo "Code is not formatted. Run 'forge fmt' to fix." && exit 1)
+
   lint-frontend:
-    name: Lint Frontend
+    name: Lint & Build Frontend
     runs-on: ubuntu-latest
 
     steps:
@@ -56,7 +84,7 @@ jobs:
 
       - name: Run ESLint
         working-directory: ./api
-        run: npm run lint || echo "No lint script found, skipping..."
+        run: npm run lint
 
   lint-sdk:
     name: Lint SDK

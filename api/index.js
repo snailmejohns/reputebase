@@ -212,7 +212,7 @@ app.get('/badges/:address', async (req, res) => {
 // Post onchain event (for future use)
 app.post('/events/onchain', async (req, res) => {
   try {
-    const { address, eventType, data } = req.body;
+    const { address, eventType } = req.body;
     
     if (!address || !eventType) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -220,6 +220,7 @@ app.post('/events/onchain', async (req, res) => {
 
     // TODO: Process onchain event
     // This would typically trigger reputation updates
+    // const { data } = req.body; // Reserved for future use
     
     res.json({
       success: true,
@@ -227,13 +228,13 @@ app.post('/events/onchain', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error processing event:', error);
+    logger.error('Error processing event:', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Failed to process event', message: error.message });
   }
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   logger.error('Unhandled error', {
     error: err.message,
     stack: err.stack,
