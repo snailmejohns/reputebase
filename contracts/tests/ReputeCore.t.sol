@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 import {Test, console} from "forge-std/Test.sol";
 import "../ReputeCore.sol";
@@ -80,9 +80,6 @@ contract ReputeCoreTest is Test {
         // Direct reputation
         vm.prank(address(txVolumeModule));
         reputeCore.increaseReputation(user1, 100);
-        
-        // Module contribution (simulate)
-        uint256 moduleRep = txVolumeModule.getReputation(user1);
         
         uint256 total = reputeCore.getTotalReputation(user1);
         

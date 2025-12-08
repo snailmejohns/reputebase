@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 import "./ReputeCore.sol";
 
 /**
@@ -13,8 +12,6 @@ import "./ReputeCore.sol";
  * @dev Automatically mints badges when users reach reputation milestones
  */
 contract BadgeNFT is ERC721URIStorage, Ownable {
-    using Counters for Counters.Counter;
-
     // Reputation thresholds for badges
     uint256 public constant BRONZE_THRESHOLD = 100;
     uint256 public constant SILVER_THRESHOLD = 1000;
@@ -33,7 +30,7 @@ contract BadgeNFT is ERC721URIStorage, Ownable {
     ReputeCore public reputeCore;
 
     // Counter for token IDs
-    Counters.Counter private _tokenIdCounter;
+    uint256 private _tokenIdCounter;
 
     // Mapping from user to badge type to whether they have it
     mapping(address => mapping(BadgeType => bool)) public userBadges;
@@ -81,8 +78,8 @@ contract BadgeNFT is ERC721URIStorage, Ownable {
         require(reputation >= threshold, "BadgeNFT: reputation threshold not met");
 
         userBadges[user][badgeType] = true;
-        uint256 tokenId = _tokenIdCounter.current();
-        _tokenIdCounter.increment();
+        uint256 tokenId = _tokenIdCounter;
+        _tokenIdCounter++;
 
         tokenBadgeType[tokenId] = badgeType;
         userTokenIds[user].push(tokenId);
