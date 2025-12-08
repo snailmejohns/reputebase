@@ -197,6 +197,7 @@ export default function Home() {
     }
 
     // Log debug information
+    const customRpc = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL;
     const debug = {
       timestamp: new Date().toISOString(),
       chainId,
@@ -205,10 +206,22 @@ export default function Home() {
       address,
       contractAddress: TX_VOLUME_MODULE_ADDRESS,
       contractCode: contractCode ? 'exists' : 'not found',
-      rpcUrl: process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || 'using fallback endpoints',
+      rpcUrl: customRpc || 'using fallback endpoints',
+      rpcStatus: customRpc ? '✅ Custom RPC set' : '❌ Using public endpoints',
     };
     
     console.log('🔍 [DEBUG] Transaction attempt:', debug);
+    console.log('📡 [RPC CHECK] Custom RPC:', customRpc ? `✅ ${customRpc.substring(0, 60)}...` : '❌ NOT SET');
+    console.log('📡 [RPC CHECK] Will use:', customRpc ? 'Custom RPC (with fallback)' : 'Public endpoints only');
+    
+    if (!customRpc) {
+      console.warn('⚠️ [WARNING] No custom RPC set! Add NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL in Vercel');
+      toast.error('No custom RPC configured. Transactions may fail. Please add NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL in Vercel.', { 
+        id: 'rpc-warning',
+        duration: 10000 
+      });
+    }
+    
     setDebugInfo(debug);
 
     // Check if on correct network
@@ -254,13 +267,26 @@ export default function Home() {
       const rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL;
       console.log('📡 [RPC] Custom RPC:', rpcUrl ? `✅ ${rpcUrl.substring(0, 50)}...` : '❌ Not set (using public endpoints)');
       
-      await writeContract({
-        address: TX_VOLUME_MODULE_ADDRESS,
-        abi: TX_VOLUME_MODULE_ABI,
-        functionName: 'recordTransaction',
-        args: [address, amount],
-        gas: undefined, // Let wagmi estimate
-      });
+      // Try to send transaction with explicit error handling
+      try {
+        const result = await writeContract({
+          address: TX_VOLUME_MODULE_ADDRESS,
+          abi: TX_VOLUME_MODULE_ABI,
+          functionName: 'recordTransaction',
+          args: [address, amount],
+          gas: undefined, // Let wagmi estimate
+        });
+        console.log('✅ [SUCCESS] Transaction sent:', result);
+      } catch (writeError) {
+        console.error('❌ [ERROR] Write contract failed:', {
+          error: writeError,
+          message: writeError?.message,
+          code: writeError?.code,
+          name: writeError?.name,
+          cause: writeError?.cause,
+        });
+        throw writeError; // Re-throw to be caught by outer try-catch
+      }
       
       console.log('✅ [SUCCESS] Transaction sent, waiting for confirmation...');
     } catch (error) {
