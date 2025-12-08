@@ -1,9 +1,9 @@
 import Head from 'next/head';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useChainId } from 'wagmi';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { parseEther } from 'viem';
+import { parseEther, formatEther } from 'viem';
 import toast from 'react-hot-toast';
 
 // Contract addresses (from deployment)
@@ -26,14 +26,27 @@ const TX_VOLUME_MODULE_ABI = [
 ];
 
 export default function Home() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
+  const chainId = useChainId();
   const [reputation, setReputation] = useState(null);
   const [badges, setBadges] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searchAddress, setSearchAddress] = useState('');
   const [earningRep, setEarningRep] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+  // Check if contract exists and is accessible
+  const { data: contractCode, isLoading: checkingContract } = useReadContract({
+    address: TX_VOLUME_MODULE_ADDRESS,
+    abi: [{ type: 'function', name: 'reputeCore', inputs: [], outputs: [{ type: 'address' }], stateMutability: 'view' }],
+    functionName: 'reputeCore',
+    query: {
+      enabled: !!TX_VOLUME_MODULE_ADDRESS && isConnected,
+      retry: 1,
+    },
+  });
 
   const fetchReputation = async (addr) => {
     if (!addr) return;
@@ -106,11 +119,49 @@ export default function Home() {
       return;
     }
 
+    // Log debug information
+    const debug = {
+      timestamp: new Date().toISOString(),
+      chainId,
+      chainName: chain?.name,
+      expectedChainId: 84532, // Base Sepolia
+      address,
+      contractAddress: TX_VOLUME_MODULE_ADDRESS,
+      contractCode: contractCode ? 'exists' : 'not found',
+      rpcUrl: process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || 'using fallback endpoints',
+    };
+    
+    console.log('🔍 [DEBUG] Transaction attempt:', debug);
+    setDebugInfo(debug);
+
+    // Check if on correct network
+    if (chainId !== 84532) {
+      const errorMsg = `Wrong network! Please switch to Base Sepolia (Chain ID: 84532). Current: ${chain?.name || chainId}`;
+      console.error('❌ [ERROR]', errorMsg);
+      toast.error(errorMsg, { id: 'tx-loading', duration: 8000 });
+      return;
+    }
+
+    // Check if contract exists
+    if (!contractCode && !checkingContract) {
+      const errorMsg = `Contract not found at ${TX_VOLUME_MODULE_ADDRESS}. Please verify the contract address.`;
+      console.error('❌ [ERROR]', errorMsg);
+      toast.error(errorMsg, { id: 'tx-loading', duration: 8000 });
+      return;
+    }
+
     setEarningRep(true);
     try {
       // Record a test transaction (0.1 ETH = 1 reputation point)
       // In production, this would be called automatically when real transactions happen
       const amount = parseEther('0.1'); // 0.1 ETH
+      
+      console.log('📝 [INFO] Preparing transaction:', {
+        to: TX_VOLUME_MODULE_ADDRESS,
+        function: 'recordTransaction',
+        args: [address, amount.toString()],
+        amount: formatEther(amount),
+      });
       
       toast.loading('Preparing transaction...', { id: 'tx-loading' });
       
@@ -120,10 +171,30 @@ export default function Home() {
         functionName: 'recordTransaction',
         args: [address, amount],
       });
+      
+      console.log('✅ [SUCCESS] Transaction sent, waiting for confirmation...');
     } catch (error) {
-      console.error('Error earning reputation:', error);
-      const errorMessage = error?.message || error?.toString() || 'Unknown error';
-      toast.error(`Failed to earn reputation: ${errorMessage}`, { id: 'tx-loading' });
+      console.error('❌ [ERROR] Transaction failed:', {
+        error,
+        message: error?.message,
+        code: error?.code,
+        name: error?.name,
+        stack: error?.stack,
+        cause: error?.cause,
+      });
+      
+      let errorMessage = error?.message || error?.toString() || 'Unknown error';
+      
+      // More detailed error messages
+      if (error?.code === 4001) {
+        errorMessage = 'Transaction rejected by user';
+      } else if (error?.code === -32603) {
+        errorMessage = 'RPC error: Contract execution failed or RPC endpoint unavailable';
+      } else if (error?.message?.includes('revert')) {
+        errorMessage = `Contract error: ${error.message}`;
+      }
+      
+      toast.error(`Failed to earn reputation: ${errorMessage}`, { id: 'tx-loading', duration: 8000 });
       setEarningRep(false);
     }
   };
@@ -154,31 +225,48 @@ export default function Home() {
     }
   }, [isWriting, isConfirming]);
 
-  // Handle errors
+  // Handle errors with detailed logging
   useEffect(() => {
     if (writeError || isReceiptError) {
       const error = writeError || receiptError;
-      console.error('Transaction error:', error);
       
-      let errorMsg = error?.message || 'Unknown error';
+      console.error('❌ [ERROR] Transaction error details:', {
+        error,
+        message: error?.message,
+        code: error?.code,
+        name: error?.name,
+        shortMessage: error?.shortMessage,
+        cause: error?.cause,
+        data: error?.data,
+        stack: error?.stack,
+        timestamp: new Date().toISOString(),
+        chainId,
+        address,
+        contractAddress: TX_VOLUME_MODULE_ADDRESS,
+      });
+      
+      let errorMsg = error?.message || error?.shortMessage || 'Unknown error';
       
       // Provide user-friendly error messages
       if (errorMsg.includes('RPC endpoint') || errorMsg.includes('too many errors') || errorMsg.includes('Requested resource not available')) {
         errorMsg = 'RPC endpoint is temporarily unavailable. The app will automatically try other endpoints. Please wait a few seconds and try again.';
-      } else if (errorMsg.includes('User rejected') || errorMsg.includes('user rejected')) {
-        errorMsg = 'Transaction was cancelled';
+        console.warn('⚠️ [WARN] RPC endpoint issue - will retry with fallback');
+      } else if (errorMsg.includes('User rejected') || errorMsg.includes('user rejected') || error?.code === 4001) {
+        errorMsg = 'Transaction was cancelled by user';
       } else if (errorMsg.includes('insufficient funds') || errorMsg.includes('insufficient balance')) {
         errorMsg = 'Insufficient funds for transaction. Please add more ETH to your wallet.';
       } else if (errorMsg.includes('network') || errorMsg.includes('Network')) {
         errorMsg = 'Network error. Please check your connection and try again.';
       } else if (errorMsg.includes('timeout') || errorMsg.includes('Timeout')) {
         errorMsg = 'Request timed out. Please try again.';
+      } else if (errorMsg.includes('revert') || error?.code === -32603) {
+        errorMsg = `Contract execution failed: ${errorMsg}`;
       }
       
-      toast.error(`Transaction failed: ${errorMsg}`, { id: 'tx-loading', duration: 6000 });
+      toast.error(`Transaction failed: ${errorMsg}`, { id: 'tx-loading', duration: 8000 });
       setEarningRep(false);
     }
-  }, [writeError, isReceiptError]);
+  }, [writeError, isReceiptError, chainId, address]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-base-dark to-blue-900">
@@ -199,6 +287,40 @@ export default function Home() {
             <ConnectButton />
           </div>
         </header>
+
+        {/* Debug Info (Development only) */}
+        {debugInfo && process.env.NODE_ENV === 'development' && (
+          <section className="mb-4 p-4 bg-gray-800 rounded-lg text-left text-xs">
+            <h3 className="font-bold mb-2 text-yellow-400">🔍 Debug Info:</h3>
+            <pre className="text-gray-300 overflow-auto">
+              {JSON.stringify(debugInfo, null, 2)}
+            </pre>
+          </section>
+        )}
+
+        {/* Network Warning */}
+        {isConnected && chainId !== 84532 && (
+          <section className="mb-4 p-4 bg-yellow-900/50 border border-yellow-600 rounded-lg">
+            <p className="text-yellow-200">
+              ⚠️ Wrong network! Please switch to <strong>Base Sepolia</strong> (Chain ID: 84532)
+            </p>
+            <p className="text-yellow-300 text-sm mt-1">
+              Current: {chain?.name || `Chain ID ${chainId}`}
+            </p>
+          </section>
+        )}
+
+        {/* Contract Status */}
+        {isConnected && (
+          <section className="mb-4 p-4 bg-blue-900/50 border border-blue-600 rounded-lg">
+            <p className="text-blue-200">
+              📋 Contract: {TX_VOLUME_MODULE_ADDRESS}
+            </p>
+            <p className="text-blue-300 text-sm mt-1">
+              Status: {checkingContract ? 'Checking...' : (contractCode ? '✅ Found' : '❌ Not found')}
+            </p>
+          </section>
+        )}
 
         {/* Hero Section */}
         <section className="text-center mb-8 sm:mb-16">
