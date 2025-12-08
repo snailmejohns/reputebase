@@ -35,7 +35,18 @@ export default function Home() {
   const [earningRep, setEarningRep] = useState(false);
   const [debugInfo, setDebugInfo] = useState(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  // Normalize API URL - ensure it has protocol
+  const getApiUrl = () => {
+    const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    // If URL doesn't start with http:// or https://, add https://
+    if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+      console.warn('⚠️ [API] URL missing protocol, adding https://:', url);
+      return `https://${url}`;
+    }
+    return url;
+  };
+  
+  const API_URL = getApiUrl();
 
   // Check if contract exists and is accessible
   const { data: contractCode, isLoading: checkingContract } = useReadContract({
@@ -59,10 +70,19 @@ export default function Home() {
       console.log('🔍 [API] Fetching reputation:', { API_URL, address: normalizedAddr });
       
       // Check if API URL is valid
-      if (!API_URL || API_URL.includes('localhost') || API_URL === 'http://localhost:3001') {
+      if (!API_URL || API_URL === 'http://localhost:3001') {
         const errorMsg = 'API URL is not configured. Please set NEXT_PUBLIC_API_URL in Vercel environment variables.';
         console.error('❌ [API ERROR]', errorMsg);
         toast.error(errorMsg, { duration: 8000 });
+        setLoading(false);
+        return;
+      }
+      
+      // Validate URL format
+      if (!API_URL.startsWith('http://') && !API_URL.startsWith('https://')) {
+        const errorMsg = `Invalid API URL format: ${API_URL}. URL must start with http:// or https://`;
+        console.error('❌ [API ERROR]', errorMsg);
+        toast.error(errorMsg, { duration: 10000 });
         setLoading(false);
         return;
       }
