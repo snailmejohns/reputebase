@@ -7,6 +7,7 @@ import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { http, fallback } from 'wagmi';
 import { Toaster } from 'react-hot-toast';
 import Script from 'next/script';
+import Head from 'next/head';
 
 // Define local Anvil chain for development
 const anvil = {
@@ -124,6 +125,11 @@ function MyApp({ Component, pageProps }) {
   
   return (
     <>
+      <Head>
+        {/* Base App Verification Meta Tag */}
+        <meta name="base:app_id" content="694bcf314d3a403912ed7dfb" />
+      </Head>
+      
       {/* Google Analytics */}
       {gaId && (
         <>
