@@ -6,19 +6,23 @@
 
 ## Решение
 
-### Вариант 1: Использовать vercel.json (Рекомендуется)
+### Вариант 1: Использовать vercel.json + Dashboard (Рекомендуется)
 
-Создайте файл `vercel.json` в корне репозитория:
+**Важно:** `rootDirectory` НЕ может быть в `vercel.json` - его нужно настроить в Vercel Dashboard!
+
+1. **Создайте файл `vercel.json`** в корне репозитория:
 
 ```json
 {
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/.next",
-  "installCommand": "cd frontend && npm install",
-  "framework": "nextjs",
-  "rootDirectory": "frontend"
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "framework": "nextjs"
 }
 ```
+
+2. **Настройте Root Directory в Vercel Dashboard:**
+   - Settings → General → Root Directory → `frontend`
+   - Сохраните изменения
 
 ### Вариант 2: Настроить в Vercel Dashboard
 
